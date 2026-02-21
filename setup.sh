@@ -450,6 +450,23 @@ if [[ -f "${SCRIPT_DIR}/wg-agent.service" ]]; then
   echo "wg-agent systemd unit installed and enabled (start with: systemctl start wg-agent)."
 fi
 
+# -----------------------------
+# systemd wg-agent watchdog (idempotent)
+# -----------------------------
+if [[ -f "${SCRIPT_DIR}/wg-agent-watchdog.service" ]] && [[ -f "${SCRIPT_DIR}/wg-agent-watchdog.timer" ]]; then
+  sed "s|INSTALL_DIR|${SCRIPT_DIR}|g" "${SCRIPT_DIR}/wg-agent-watchdog.service" > /etc/systemd/system/wg-agent-watchdog.service
+  cp "${SCRIPT_DIR}/wg-agent-watchdog.timer" /etc/systemd/system/wg-agent-watchdog.timer
+  chmod 644 /etc/systemd/system/wg-agent-watchdog.service /etc/systemd/system/wg-agent-watchdog.timer
+  if [[ -f "${SCRIPT_DIR}/check-wg-agent-health.sh" ]]; then
+    chmod 755 "${SCRIPT_DIR}/check-wg-agent-health.sh"
+    chown root:root "${SCRIPT_DIR}/check-wg-agent-health.sh"
+  fi
+  systemctl daemon-reload
+  systemctl enable --quiet wg-agent-watchdog.timer 2>/dev/null || true
+  systemctl start --quiet wg-agent-watchdog.timer 2>/dev/null || true
+  echo "wg-agent watchdog timer installed and enabled (checks /health-local every 2 min, restarts service on failure)."
+fi
+
 echo ""
 echo "Configuration written to $ENV_FILE"
 echo "PORT=$PORT"

@@ -77,6 +77,8 @@ Check status:
 sudo systemctl status wg-agent
 ```
 
+**Watchdog:** Setup also installs a timer that checks the agent every 2 minutes. If `GET /health-local` (localhost-only, no auth) fails, it restarts `wg-agent`. The timer is enabled and started automatically. To inspect: `systemctl status wg-agent-watchdog.timer`.
+
 The agent listens on the port configured in `wg-agent.env` (default `50085`), on all interfaces (`BIND_ADDRESS` defaults to `0.0.0.0`). To bind a specific address, set `BIND_ADDRESS` in `/etc/wg-agent/wg-agent.env` and restart the service.
 
 ---
@@ -107,7 +109,8 @@ sudo systemctl restart wg-agent
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/health` | Health check. Returns `{"status":"ok"}`. |
+| GET | `/health` | Health check. Returns `{"status":"ok"}`. Requires client IP in `ALLOWED_CLIENT_IPS`. |
+| GET | `/health-local` | Health check for **localhost only** (127.0.0.1 / ::1). No auth. Used by the watchdog; returns 403 from other IPs. |
 | GET | `/interfaces` | List configured interface names. Returns `{"interfaces":["wg-xray",...]}`. |
 | GET | `/interfaces/{interface_name}/peers` | Get the current managed peers block (raw text) for that interface. |
 | POST | `/interfaces/{interface_name}/peers` | Replace the managed peers block for that interface. Body: JSON array of peer objects. |
@@ -149,6 +152,9 @@ If the client IP is not in `ALLOWED_CLIENT_IPS`, the API returns `403 Forbidden`
 | `run-wg-agent.sh` | Wrapper that sources `wg-agent.env` and runs `uvicorn wg_agent:app`. Used by the systemd unit. |
 | `wg_agent.py` | FastAPI application and WireGuard managed-block logic. |
 | `wg-agent.service` | Systemd unit template; setup installs it into `/etc/systemd/system/` with the correct paths. |
+| `check-wg-agent-health.sh` | Watchdog script: curls `/health-local`, restarts `wg-agent` on failure. Run by the timer. |
+| `wg-agent-watchdog.service` | One-shot unit that runs the health-check script. |
+| `wg-agent-watchdog.timer` | Fires every 2 minutes to run the watchdog service. |
 | `requirements.txt` | Python dependencies (fastapi, uvicorn). |
 
 ---

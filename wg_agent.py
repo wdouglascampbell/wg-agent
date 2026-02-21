@@ -132,3 +132,12 @@ async def list_peers(request: Request, interface_name: str):
 async def health(request: Request):
     validate_client_ip(request)
     return {"status": "ok"}
+
+
+@app.get("/health-local")
+async def health_local(request: Request):
+    """Unauthenticated health check for localhost only (e.g. watchdog)."""
+    client = request.client.host if request.client else ""
+    if client not in ("127.0.0.1", "::1"):
+        raise HTTPException(status_code=403, detail="Forbidden")
+    return {"status": "ok"}

@@ -1,0 +1,12 @@
+# Run wg-agent health check every 2 minutes.
+
+[Unit]
+Description=wg-agent watchdog timer
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=2min
+AccuracySec=30s
+
+[Install]
+WantedBy=timers.target
