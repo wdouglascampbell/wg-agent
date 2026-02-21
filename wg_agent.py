@@ -90,12 +90,25 @@ def rewrite_managed_block(interface_name: str, peers: List[dict]) -> None:
         f.write(new_config)
 
     try:
-        subprocess.run(["wg-quick", "strip", tmp_path, "--dry-run"], check=True)
+        strip_result = subprocess.run(
+            ["wg-quick", "strip", tmp_path],
+            capture_output=True,
+            check=True,
+            text=True,
+        )
     except subprocess.CalledProcessError:
         raise RuntimeError("Generated WireGuard config is invalid")
 
     os.replace(tmp_path, config_path)
-    subprocess.run(["wg", "syncconf", interface_name, config_path], check=True)
+    os.chmod(config_path, 0o600)
+
+    # Reuse stripped output from validation; syncconf expects stripped config
+    subprocess.run(
+        ["wg", "syncconf", interface_name, "-"],
+        input=strip_result.stdout,
+        check=True,
+        text=True,
+    )
 
 # -----------------------------
 # API Endpoints
