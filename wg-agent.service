@@ -1,0 +1,21 @@
+# wg-agent systemd unit (install to /etc/systemd/system/)
+# Setup script installs this with INSTALL_DIR replaced by the repo path.
+# Bind address: set BIND_ADDRESS in /etc/wg-agent/wg-agent.env (default 0.0.0.0).
+#   - 0.0.0.0: listen on all interfaces (recommended for multiple tunnels; use firewall + ALLOWED_CLIENT_IPS).
+#   - <tunnel IP>: listen only on that WireGuard tunnel (single-tunnel setup).
+#   - <external IP>: listen only on default-route interface IP (agent not reachable via tunnel IPs).
+
+[Unit]
+Description=wg-agent WireGuard peer management API
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=INSTALL_DIR
+ExecStart=INSTALL_DIR/run-wg-agent.sh
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
