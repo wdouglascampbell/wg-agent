@@ -42,7 +42,7 @@ sudo ./setup.sh
 Setup will:
 
 - Create `/etc/wg-agent` and prompt for **listening port** (default `50085`) and **allowed client IPs** (comma- or space-separated). Only these IPs can call the API; the script also configures nftables to restrict the port to those IPs.
-- If no interfaces are configured yet, prompt for at least one **WireGuard interface**: name (e.g. `wg-xray`) and **host tunnel IP** (the server’s address on that WireGuard interface). For each new interface it will:
+- If no interfaces are configured yet, prompt for at least one **WireGuard interface**: name (e.g. `wg-tunnel`) and **host tunnel IP** (the server’s address on that WireGuard interface). For each new interface it will:
   - Generate a key pair under `/etc/wireguard/`.
   - Create `/etc/wireguard/<name>.conf` with `[Interface]`, PostUp/PostDown (NAT via default-route interface), and a managed peers block.
   - Enable and start `wg-quick@<name>`.
@@ -111,7 +111,7 @@ sudo systemctl restart wg-agent
 |--------|------|-------------|
 | GET | `/health` | Health check. Returns `{"status":"ok"}`. Requires client IP in `ALLOWED_CLIENT_IPS`. |
 | GET | `/health-local` | Health check for **localhost only** (127.0.0.1 / ::1). No auth. Used by the watchdog; returns 403 from other IPs. |
-| GET | `/interfaces` | List configured interface names. Returns `{"interfaces":["wg-xray",...]}`. |
+| GET | `/interfaces` | List configured interface names. Returns `{"interfaces":["wg-tunnel",...]}`. |
 | GET | `/interfaces/{interface_name}/peers` | Get the current managed peers block (raw text) for that interface. |
 | POST | `/interfaces/{interface_name}/peers` | Replace the managed peers block for that interface. Body: JSON array of peer objects. |
 
@@ -143,22 +143,6 @@ If the client IP is not in `ALLOWED_CLIENT_IPS`, the API returns `403 Forbidden`
 
 ---
 
-## Scripts and files
-
-| Item | Purpose |
-|------|--------|
-| `setup.sh` | Interactive setup: `/etc/wg-agent`, env, WireGuard interfaces (keys + config + wg-quick), nftables, venv, systemd unit. Run once (or re-run to add interfaces / change port or allowed IPs). Requires sudo. |
-| `add_peer.sh` | Add one static (unmanaged) peer to a WireGuard config before the managed block. Run with sudo when you have the peer’s public key, endpoint, and AllowedIPs. |
-| `run-wg-agent.sh` | Wrapper that sources `wg-agent.env` and runs `uvicorn wg_agent:app`. Used by the systemd unit. |
-| `wg_agent.py` | FastAPI application and WireGuard managed-block logic. |
-| `wg-agent.service` | Systemd unit template; setup installs it into `/etc/systemd/system/` with the correct paths. |
-| `check-wg-agent-health.sh` | Watchdog script: curls `/health-local`, restarts `wg-agent` on failure. Run by the timer. |
-| `wg-agent-watchdog.service` | One-shot unit that runs the health-check script. |
-| `wg-agent-watchdog.timer` | Fires every 2 minutes to run the watchdog service. |
-| `requirements.txt` | Python dependencies (fastapi, uvicorn). |
-
----
-
 ## Firewall (nftables)
 
 Setup installs a table `inet wg_agent_filter` that:
@@ -167,9 +151,3 @@ Setup installs a table `inet wg_agent_filter` that:
 - Drops all other traffic to that port.
 
 The snippet is written to `/etc/wg-agent/nftables-wg_agent_filter.nft`. If `/etc/nftables.conf` already exists, setup appends an `include` for that snippet and reloads; otherwise it creates a minimal `nftables.conf` and enables nftables. This keeps the agent port restricted even if the API is bound to `0.0.0.0`.
-
----
-
-## License
-
-Use and modify as needed for your environment.
