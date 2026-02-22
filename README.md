@@ -2,7 +2,7 @@
 
 A small HTTP API that manages the **managed peers** section of WireGuard interface configs. Authorized clients can list interfaces, get the current managed peers, or replace the managed peers block for any configured interface. The agent applies changes live with `wg syncconf` and does not touch static (unmanaged) peers above the managed block.
 
-Useful when a control plane (e.g. Xray or another service) needs to update WireGuard peers on this host without direct file or shell access.
+Useful when a control plane needs to update WireGuard peers on this host without direct file or shell access.
 
 ---
 
