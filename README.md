@@ -121,9 +121,11 @@ sudo systemctl restart wg-agent
 
 Each peer must have:
 
-- `public_key` (string)
-- `allowed_ips` (array of strings, e.g. `["192.168.74.1/32"]`)
-- `endpoint` (string, e.g. `"hostname:51820"` or `"10.0.0.2:51820"`)
+- `public_key` (string) – WireGuard public key (base64, 32 bytes decoded). Max length 64.
+- `allowed_ips` (array of strings) – Each entry must be a CIDR: IPv4 with a `/prefix` (e.g. `192.168.74.1/32`), IPv6 with a `/prefix` (e.g. `fd00::/64`). Max 100 entries per peer.
+- `endpoint` (string, optional) – When present, must be `host:port` (e.g. `"hostname:51820"` or `"10.0.0.2:51820"`). Can be empty. Max length 256.
+
+Limits: at most 500 peers per interface. POST `/interfaces/{name}/peers` returns `400` if the body contains duplicate `public_key` values.
 
 **Replace all peers (POST /peers):**
 
@@ -151,7 +153,7 @@ curl -X DELETE "http://192.168.250.1:50085/interfaces/wg-xray/peers" \
 
 Response: `{"status":"success","interface":"wg-xray","num_peers":1}`.
 
-If the client IP is not in `ALLOWED_CLIENT_IPS`, the API returns `403 Forbidden`. If the interface name is not in `INTERFACES`, it returns `404`.
+If the client IP is not in `ALLOWED_CLIENT_IPS`, the API returns `403 Forbidden`. If the interface name is not in `INTERFACES`, it returns `404`. Invalid interface names (e.g. containing `/` or `..`) return `400`. Request bodies that fail validation (invalid key, non-CIDR allowed_ips, etc.) return `400` with an error message.
 
 ---
 
