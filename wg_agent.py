@@ -1,5 +1,6 @@
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request, HTTPException, Body
 import os
+import re
 import subprocess
 from typing import List
 
@@ -47,6 +48,49 @@ def validate_interface(interface_name: str) -> None:
             status_code=404,
             detail=f"Unknown interface: {interface_name}. Configured: {config['interface_names']}",
         )
+
+def parse_managed_block(interface_name: str) -> List[dict]:
+    """Parse the managed peers section into a list of peer dicts (public_key, allowed_ips, endpoint)."""
+    config_path = get_config_path(interface_name)
+    with open(config_path, "r") as f:
+        content = f.read()
+    try:
+        start_idx = content.index(MANAGED_START)
+        end_idx = content.index(MANAGED_END) + len(MANAGED_END)
+    except ValueError:
+        raise RuntimeError("Managed peers markers not found in config")
+    managed_section = content[start_idx:end_idx]
+
+    peers = []
+    # Split on [Peer] blocks; strip markers from content
+    block_text = managed_section
+    for marker in (MANAGED_START, MANAGED_END):
+        block_text = block_text.replace(marker, "").strip()
+    if not block_text.strip():
+        return peers
+
+    raw_blocks = re.split(r"\n\[Peer\]\s*\n", block_text, flags=re.IGNORECASE)
+    for raw in raw_blocks:
+        raw = raw.strip()
+        if not raw:
+            continue
+        peer = {}
+        for line in raw.split("\n"):
+            line = line.strip()
+            if "=" in line:
+                key, _, value = line.partition("=")
+                key = key.strip().lower()
+                value = value.strip()
+                if key == "publickey":
+                    peer["public_key"] = value
+                elif key == "endpoint":
+                    peer["endpoint"] = value
+                elif key == "allowedips":
+                    peer["allowed_ips"] = [s.strip() for s in value.split(",") if s.strip()]
+        if peer.get("public_key") and peer.get("allowed_ips") is not None and peer.get("endpoint"):
+            peers.append(peer)
+    return peers
+
 
 def rewrite_managed_block(interface_name: str, peers: List[dict]) -> None:
     """
@@ -129,17 +173,58 @@ async def set_peers(request: Request, interface_name: str, peers: List[dict]):
         raise HTTPException(status_code=400, detail=str(e))
     return {"status": "success", "interface": interface_name, "num_peers": len(peers)}
 
-@app.get("/interfaces/{interface_name}/peers")
+@app.get("/interfaces/{interface_name}/peers/list")
 async def list_peers(request: Request, interface_name: str):
     validate_client_ip(request)
     validate_interface(interface_name)
-    config_path = get_config_path(interface_name)
-    with open(config_path, "r") as f:
-        content = f.read()
-    start_idx = content.index(MANAGED_START)
-    end_idx = content.index(MANAGED_END) + len(MANAGED_END)
-    managed_section = content[start_idx:end_idx]
-    return {"interface": interface_name, "managed_peers_raw": managed_section}
+    try:
+        peers = parse_managed_block(interface_name)
+    except RuntimeError as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    return {"interface": interface_name, "peers": peers}
+
+
+@app.post("/interfaces/{interface_name}/peers/add")
+async def add_peer(request: Request, interface_name: str, peer: dict):
+    validate_client_ip(request)
+    validate_interface(interface_name)
+    try:
+        peers = parse_managed_block(interface_name)
+    except RuntimeError as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    keys = {p["public_key"] for p in peers}
+    if peer.get("public_key") in keys:
+        raise HTTPException(status_code=409, detail="Peer with this public_key already exists")
+    for key in ("public_key", "allowed_ips", "endpoint"):
+        if not peer.get(key):
+            raise HTTPException(status_code=400, detail=f"Peer must have '{key}'")
+    peers.append(peer)
+    try:
+        rewrite_managed_block(interface_name, peers)
+    except (ValueError, RuntimeError) as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"status": "success", "interface": interface_name, "added_peer": peer.get("public_key")}
+
+
+@app.delete("/interfaces/{interface_name}/peers")
+async def remove_peer(request: Request, interface_name: str, body: dict = Body(...)):
+    validate_client_ip(request)
+    validate_interface(interface_name)
+    public_key = body.get("public_key")
+    if not public_key:
+        raise HTTPException(status_code=400, detail="Body must include 'public_key'")
+    try:
+        peers = parse_managed_block(interface_name)
+    except RuntimeError as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    new_peers = [p for p in peers if p.get("public_key") != public_key]
+    if len(new_peers) == len(peers):
+        raise HTTPException(status_code=404, detail="Peer not found")
+    try:
+        rewrite_managed_block(interface_name, new_peers)
+    except (ValueError, RuntimeError) as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"status": "success", "interface": interface_name, "removed_peer": public_key}
 
 @app.get("/health")
 async def health(request: Request):

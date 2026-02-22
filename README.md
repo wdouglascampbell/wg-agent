@@ -112,29 +112,41 @@ sudo systemctl restart wg-agent
 | GET | `/health` | Health check. Returns `{"status":"ok"}`. Requires client IP in `ALLOWED_CLIENT_IPS`. |
 | GET | `/health-local` | Health check for **localhost only** (127.0.0.1 / ::1). No auth. Used by the watchdog; returns 403 from other IPs. |
 | GET | `/interfaces` | List configured interface names. Returns `{"interfaces":["wg-tunnel",...]}`. |
-| GET | `/interfaces/{interface_name}/peers` | Get the current managed peers block (raw text) for that interface. |
-| POST | `/interfaces/{interface_name}/peers` | Replace the managed peers block for that interface. Body: JSON array of peer objects. |
+| GET | `/interfaces/{interface_name}/peers/list` | List managed peers for that interface. Returns `{"interface":"...","peers":[{...},...]}`. |
+| POST | `/interfaces/{interface_name}/peers` | Replace the entire managed peers block. Body: JSON array of peer objects. |
+| POST | `/interfaces/{interface_name}/peers/add` | Add one managed peer. Body: single peer object. Returns 409 if `public_key` already exists. |
+| DELETE | `/interfaces/{interface_name}/peers` | Remove one managed peer. Body: `{"public_key": "..."}`. Returns 404 if not found. |
 
-### Peer object (for POST)
+### Peer object
 
-Each element in the JSON array must have:
+Each peer must have:
 
 - `public_key` (string)
 - `allowed_ips` (array of strings, e.g. `["192.168.74.1/32"]`)
 - `endpoint` (string, e.g. `"hostname:51820"` or `"10.0.0.2:51820"`)
 
-Example:
+**Replace all peers (POST /peers):**
 
 ```bash
 curl -X POST "http://192.168.250.1:50085/interfaces/wg-xray/peers" \
   -H "Content-Type: application/json" \
-  -d '[
-    {
-      "public_key": "1XcnvAe7qB7Hy1Qcj7DJjEzs/Lf+sHFrnB1m+c6bNR8=",
-      "allowed_ips": ["192.168.74.1/32"],
-      "endpoint": "test.xtoany.net:51820"
-    }
-  ]'
+  -d '[{"public_key":"...","allowed_ips":["192.168.74.1/32"],"endpoint":"test.example.com:51820"}]'
+```
+
+**Add one peer (POST /peers/add):**
+
+```bash
+curl -X POST "http://192.168.250.1:50085/interfaces/wg-xray/peers/add" \
+  -H "Content-Type: application/json" \
+  -d '{"public_key":"...","allowed_ips":["192.168.74.1/32"],"endpoint":"test.example.com:51820"}'
+```
+
+**Remove one peer (DELETE /peers):**
+
+```bash
+curl -X DELETE "http://192.168.250.1:50085/interfaces/wg-xray/peers" \
+  -H "Content-Type: application/json" \
+  -d '{"public_key":"..."}'
 ```
 
 Response: `{"status":"success","interface":"wg-xray","num_peers":1}`.
