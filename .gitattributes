@@ -1,0 +1,2 @@
+# Ensure all text files use LF so scripts and configs work on Linux.
+* text=auto eol=lf
