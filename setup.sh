@@ -495,7 +495,7 @@ if [[ ${#INTERFACE_NAMES[@]} -gt 0 ]]; then
       echo ""
     fi
   done
-  echo "On the control plane (other end), add this host as a peer with the public key above. In AllowedIPs include at least this host's tunnel IP for that interface (you may add other ranges as needed)."
+  echo "On the control plane (other end), add this host as a peer with the public key above. In AllowedIPs include at least the tunnel IP for this host on that interface (you may add other ranges as needed)."
   echo ""
 fi
 
