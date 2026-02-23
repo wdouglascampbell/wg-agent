@@ -262,7 +262,7 @@ if [[ ${#INTERFACE_NAMES[@]} -eq 0 ]]; then
       # Default: current Address from existing .conf if present
       current_addr=""
       if [[ -f "${WG_DIR}/${iface_name}.conf" ]]; then
-        current_addr=$(awk '/^\[Interface\]/,/^\[/ { if (/^Address[[:space:]]*=/) { print $3; exit } }' "${WG_DIR}/${iface_name}.conf" | cut -d/ -f1)
+        current_addr=$(awk '/^\[Interface\]/,/^\[/ { if (/^Address[[:space:]]*=/) { gsub(/\/.*/, ""); print $3; exit } }' "${WG_DIR}/${iface_name}.conf")
       fi
       echo "Host tunnel IP: the IP address this host will have on this WireGuard interface (the tunnel-side address for this server)."
       read -r -p "Host tunnel IP for $iface_name [${current_addr:-}]: " iface_addr
