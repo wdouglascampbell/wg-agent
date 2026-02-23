@@ -354,7 +354,7 @@ fi
   echo "PORT=${PORT}"
   echo "ALLOWED_CLIENT_IPS=${ALLOWED_CLIENT_IPS}"
   # Comma-separated list of interface names
-  printf -v interfaces_comma '%s,' "${INTERFACE_NAMES[@]}"
+  printf -v interfaces_comma "%s," "${INTERFACE_NAMES[@]}"
   echo "INTERFACES=${interfaces_comma%,}"
 } > "$ENV_FILE"
 
