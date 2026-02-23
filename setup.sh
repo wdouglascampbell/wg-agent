@@ -473,4 +473,30 @@ echo "PORT=$PORT"
 echo "ALLOWED_CLIENT_IPS=$ALLOWED_CLIENT_IPS"
 echo "Interfaces: ${INTERFACE_NAMES[*]}"
 echo ""
+
+if [[ ${#INTERFACE_NAMES[@]} -gt 0 ]]; then
+  echo "--- Tunnel public keys and tunnel IPs (this host) ---"
+  echo "Use these to configure the other end of each tunnel (e.g. on the control plane)."
+  echo ""
+  for iface in "${INTERFACE_NAMES[@]}"; do
+    pubkey_file="${WG_DIR}/${iface}-publickey"
+    wg_conf="${WG_DIR}/${iface}.conf"
+    if [[ -f "$pubkey_file" ]]; then
+      pubkey=$(cat "$pubkey_file")
+      tunnel_addr=""
+      if [[ -f "$wg_conf" ]]; then
+        tunnel_addr=$(awk '/^\[Interface\]/,/^\[/ { if (/^Address[[:space:]]*=/) { print $3; exit } }' "$wg_conf")
+      fi
+      echo "  $iface:"
+      echo "    PublicKey: $pubkey"
+      if [[ -n "$tunnel_addr" ]]; then
+        echo "    Tunnel IP (this host): $tunnel_addr"
+      fi
+      echo ""
+    fi
+  done
+  echo "On the control plane (other end), add this host as a peer with the public key above. In AllowedIPs include at least this host's tunnel IP for that interface (you may add other ranges as needed)."
+  echo ""
+fi
+
 echo "Done."
