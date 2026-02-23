@@ -262,7 +262,7 @@ if [[ ${#INTERFACE_NAMES[@]} -eq 0 ]]; then
       # Default: current Address from existing .conf if present
       current_addr=""
       if [[ -f "${WG_DIR}/${iface_name}.conf" ]]; then
-        current_addr=$(grep -m1 '^Address' "${WG_DIR}/${iface_name}.conf" 2>/dev/null | sed 's/.*=[ \t]*//;s/\/.*//')
+        current_addr=$(grep -m1 "^Address" "${WG_DIR}/${iface_name}.conf" 2>/dev/null | sed "s/.*=[ \t]*//;s/\/.*//")
       fi
       echo "Host tunnel IP: the IP address this host will have on this WireGuard interface (the tunnel-side address for this server)."
       read -r -p "Host tunnel IP for $iface_name [${current_addr:-}]: " iface_addr
@@ -485,7 +485,7 @@ if [[ ${#INTERFACE_NAMES[@]} -gt 0 ]]; then
       pubkey=$(cat "$pubkey_file")
       tunnel_addr=""
       if [[ -f "$wg_conf" ]]; then
-        tunnel_addr=$(grep -m1 '^Address' "$wg_conf" 2>/dev/null | sed 's/.*=[ \t]*//')
+        tunnel_addr=$(grep -m1 "^Address" "$wg_conf" 2>/dev/null | sed "s/.*=[ \t]*//")
       fi
       echo "  $iface:"
       echo "    PublicKey: $pubkey"
