@@ -404,7 +404,7 @@ else
   # Add our include for persistence if not already present (idempotent).
   if ! grep -q "nftables-wg_agent_filter.nft" /etc/nftables.conf 2>/dev/null; then
     echo "Adding wg-agent include to /etc/nftables.conf for persistence."
-    printf '\n# wg-agent (setup.sh)\ninclude "%s"\n' "$NFT_SNIPPET" >> /etc/nftables.conf
+    printf "\n# wg-agent (setup.sh)\ninclude \"%s\"\n" "$NFT_SNIPPET" >> /etc/nftables.conf
   else
     echo "wg-agent include already present in /etc/nftables.conf."
   fi
