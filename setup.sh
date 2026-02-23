@@ -115,7 +115,7 @@ if [[ -f "$ENV_FILE" ]]; then
   echo "Existing configuration found at $ENV_FILE"
   while IFS= read -r line; do
     line="${line%%#*}"
-    line="${line#"${line%%[![:space:]]*}}"
+    line="${line#"${line%%[![:space:]]*}"}"
     [[ -z "$line" ]] && continue
     if [[ "$line" =~ ^PORT=(.*)$ ]]; then
       PORT="${BASH_REMATCH[1]}"
