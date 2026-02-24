@@ -351,6 +351,66 @@ if [[ ${#INTERFACE_NAMES[@]} -eq 0 ]]; then
 fi
 
 # -----------------------------
+# When we already have interfaces (e.g. from .env), offer to add more
+# -----------------------------
+if [[ ${#INTERFACE_NAMES[@]} -gt 0 ]]; then
+  while true; do
+    read -r -p "Add another WireGuard interface? [y/N]: " add_more
+    if [[ ! "${add_more,,}" =~ ^y(es)?$ ]]; then
+      break
+    fi
+    echo ""
+    read -r -p "Interface name (e.g. wg-tunnel): " iface_name
+    if ! is_valid_interface_name "$iface_name"; then
+      if [[ -z "$iface_name" ]]; then
+        echo "Interface name cannot be empty."
+      elif [[ ${#iface_name} -gt $MAX_IFACE_LEN ]]; then
+        echo "Interface name must be at most $MAX_IFACE_LEN characters (Linux limit)."
+      else
+        echo "Interface name may only contain letters, numbers, hyphens, and underscores."
+      fi
+      continue
+    fi
+    if is_duplicate_interface "$iface_name" "${INTERFACE_NAMES[@]}"; then
+      read -r -p "Interface '$iface_name' is already managed. Overwrite its configuration? [y/N]: " overwrite_managed
+      if [[ ! "${overwrite_managed,,}" =~ ^y(es)?$ ]]; then
+        continue
+      fi
+      current_addr=""
+      if [[ -f "${WG_DIR}/${iface_name}.conf" ]]; then
+        current_addr=$(grep -m1 "^Address" "${WG_DIR}/${iface_name}.conf" 2>/dev/null | sed "s/.*=[ \t]*//;s/\/.*//")
+      fi
+      echo "Host tunnel IP: the IP address this host will have on this WireGuard interface (the tunnel-side address for this server)."
+      read -r -p "Host tunnel IP for $iface_name [${current_addr:-}]: " iface_addr
+      iface_addr="${iface_addr:-$current_addr}"
+      if ! is_valid_ip "$iface_addr"; then
+        echo "Invalid IP address. Enter a valid IPv4 or IPv6 address."
+        continue
+      fi
+      if is_reserved_tunnel_ip "$iface_addr"; then
+        echo "That address is reserved (e.g. loopback, multicast, 0.0.0.0). Use a unicast tunnel address."
+        continue
+      fi
+      create_or_overwrite_wg_interface "$iface_name" "$iface_addr" "already_managed" || continue
+    else
+      echo "Host tunnel IP: the IP address this host will have on this WireGuard interface (the tunnel-side address for this server)."
+      read -r -p "Host tunnel IP for $iface_name: " iface_addr
+      if ! is_valid_ip "$iface_addr"; then
+        echo "Invalid IP address. Enter a valid IPv4 or IPv6 address."
+        continue
+      fi
+      if is_reserved_tunnel_ip "$iface_addr"; then
+        echo "That address is reserved (e.g. loopback, multicast, 0.0.0.0). Use a unicast tunnel address."
+        continue
+      fi
+      create_or_overwrite_wg_interface "$iface_name" "$iface_addr" || continue
+      INTERFACE_NAMES+=("$iface_name")
+    fi
+    echo ""
+  done
+fi
+
+# -----------------------------
 # Ensure we have PORT and ALLOWED_CLIENT_IPS when we had existing env (only interfaces)
 # -----------------------------
 if [[ -f "$ENV_FILE" ]] && [[ -z "$PORT" ]]; then
