@@ -293,6 +293,20 @@ def rewrite_managed_block(interface_name: str, peers: List[dict]) -> None:
         shutil.copy2(tmp_path, config_path)
         os.chmod(config_path, 0o600)
 
+        # Restore SELinux context (file was created in tmp_t; needs etc_t under /etc/wireguard/)
+        try:
+            subprocess.run(
+                ["restorecon", config_path],
+                check=True,
+                timeout=SUBPROCESS_TIMEOUT,
+            )
+        except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired) as e:
+            logger.warning(
+                "restorecon did not run or failed for %s (system may not use SELinux): %s",
+                config_path,
+                e,
+            )
+
         # Apply config and routes via service restart (syncconf does not update routes)
         try:
             subprocess.run(
