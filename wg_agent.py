@@ -3,7 +3,9 @@ import base64
 import logging
 import os
 import re
+import shutil
 import subprocess
+import tempfile
 from typing import List
 
 from fastapi import FastAPI, HTTPException, Request
@@ -269,37 +271,41 @@ def rewrite_managed_block(interface_name: str, peers: List[dict]) -> None:
 
     new_config = static_part + managed_section + footer
 
-    tmp_path = config_path + ".tmp"
-    with open(tmp_path, "w") as f:
-        f.write(new_config)
-
+    # wg-quick strip requires the file to be named INTERFACE.conf
+    tmpdir = tempfile.mkdtemp()
     try:
-        strip_result = subprocess.run(
-            ["wg-quick", "strip", tmp_path],
-            capture_output=True,
-            check=True,
-            text=True,
-            timeout=SUBPROCESS_TIMEOUT,
-        )
-    except subprocess.CalledProcessError:
-        raise RuntimeError("Generated WireGuard config is invalid")
-    except subprocess.TimeoutExpired:
-        raise RuntimeError("wg-quick strip timed out")
+        tmp_path = os.path.join(tmpdir, f"{interface_name}.conf")
+        with open(tmp_path, "w") as f:
+            f.write(new_config)
 
-    os.replace(tmp_path, config_path)
-    os.chmod(config_path, 0o600)
+        try:
+            subprocess.run(
+                ["wg-quick", "strip", tmp_path],
+                capture_output=True,
+                check=True,
+                timeout=SUBPROCESS_TIMEOUT,
+            )
+        except subprocess.CalledProcessError:
+            raise RuntimeError("Generated WireGuard config is invalid")
+        except subprocess.TimeoutExpired:
+            raise RuntimeError("wg-quick strip timed out")
 
-    # Reuse stripped output from validation; syncconf expects stripped config
-    try:
-        subprocess.run(
-            ["wg", "syncconf", interface_name, "-"],
-            input=strip_result.stdout,
-            check=True,
-            text=True,
-            timeout=SUBPROCESS_TIMEOUT,
-        )
-    except subprocess.TimeoutExpired:
-        raise RuntimeError("wg syncconf timed out")
+        shutil.copy2(tmp_path, config_path)
+        os.chmod(config_path, 0o600)
+
+        # Apply config and routes via service restart (syncconf does not update routes)
+        try:
+            subprocess.run(
+                ["systemctl", "restart", f"wg-quick@{interface_name}"],
+                check=True,
+                timeout=SUBPROCESS_TIMEOUT,
+            )
+        except subprocess.CalledProcessError as e:
+            raise RuntimeError(f"Failed to restart wg-quick@{interface_name}: {e}")
+        except subprocess.TimeoutExpired:
+            raise RuntimeError("systemctl restart timed out")
+    finally:
+        shutil.rmtree(tmpdir, ignore_errors=True)
 
 # -----------------------------
 # API Endpoints
