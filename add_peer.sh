@@ -8,6 +8,8 @@ if [[ $EUID -ne 0 ]]; then
   exit 1
 fi
 
+clear
+
 MANAGED_MARKER="# BEGIN MANAGED PEERS"
 CONFIG_DIR="/etc/wg-agent"
 ENV_FILE="${CONFIG_DIR}/wg-agent.env"
@@ -75,7 +77,7 @@ if [[ -z "$public_key" ]]; then
   exit 1
 fi
 
-read -r -p "Peer endpoint (hostname or IP:port, e.g. test.xtoany.net:51820): " endpoint
+read -r -p "Peer endpoint (hostname or IP:port, e.g. yourdomain.com:51820): " endpoint
 if [[ -z "$endpoint" ]]; then
   echo "Endpoint is required." >&2
   exit 1
