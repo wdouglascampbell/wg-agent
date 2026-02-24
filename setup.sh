@@ -110,6 +110,7 @@ chown root:root "$CONFIG_DIR"
 clear
 
 declare -a INTERFACE_NAMES
+HAD_INTERFACES_FROM_START=0
 PORT=""
 ALLOWED_CLIENT_IPS=""
 
@@ -177,6 +178,7 @@ if [[ -f "$ENV_FILE" ]]; then
       *) ;; # 1 or default: keep as-is
     esac
   fi
+  HAD_INTERFACES_FROM_START=${#INTERFACE_NAMES[@]}
 fi
 
 # -----------------------------
@@ -351,9 +353,9 @@ if [[ ${#INTERFACE_NAMES[@]} -eq 0 ]]; then
 fi
 
 # -----------------------------
-# When we already have interfaces (e.g. from .env), offer to add more
+# When we already had interfaces at start (e.g. from .env), offer to add more
 # -----------------------------
-if [[ ${#INTERFACE_NAMES[@]} -gt 0 ]]; then
+if [[ $HAD_INTERFACES_FROM_START -gt 0 ]]; then
   while true; do
     read -r -p "Add another WireGuard interface? [y/N]: " add_more
     if [[ ! "${add_more,,}" =~ ^y(es)?$ ]]; then
