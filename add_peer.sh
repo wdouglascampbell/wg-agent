@@ -234,6 +234,6 @@ if ! wg-quick strip "$tmp" &>/dev/null; then
 fi
 
 cp "$tmp" "$CONFIG_PATH"
-echo "Peer added to $CONFIG_PATH. Applying with wg syncconf..."
-wg syncconf "$iface" <(wg-quick strip "$CONFIG_PATH")
+echo "Peer added to $CONFIG_PATH. Restarting wg-quick@${iface}..."
+systemctl restart "wg-quick@${iface}"
 echo "Done."
