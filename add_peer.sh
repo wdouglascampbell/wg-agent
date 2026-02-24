@@ -92,8 +92,10 @@ fi
 allowed_ips=$(echo "$allowed_ips" | tr ',' ' ' | xargs | tr ' ' ',')
 
 # Insert new [Peer] block before the first occurrence of MANAGED_MARKER
-tmp=$(mktemp)
-trap 'rm -f "$tmp"' EXIT
+# wg-quick strip requires the file to be named INTERFACE.conf, so use a temp dir
+tmpdir=$(mktemp -d)
+trap 'rm -rf "$tmpdir"' EXIT
+tmp="${tmpdir}/${iface}.conf"
 inserted=0
 while IFS= read -r line; do
   if [[ "$line" == "$MANAGED_MARKER" ]] && [[ $inserted -eq 0 ]]; then
@@ -108,9 +110,9 @@ while IFS= read -r line; do
   echo "$line"
 done < "$CONFIG_PATH" > "$tmp"
 
-# Validate with wg-quick
-if ! wg-quick strip "$tmp" --dry-run &>/dev/null; then
-  echo "Generated config failed validation (wg-quick strip --dry-run)." >&2
+# Validate with wg-quick strip (no --dry-run; file must be INTERFACE.conf)
+if ! wg-quick strip "$tmp" &>/dev/null; then
+  echo "Generated config failed validation (wg-quick strip)." >&2
   exit 1
 fi
 
