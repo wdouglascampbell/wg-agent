@@ -265,7 +265,9 @@ create_or_overwrite_wg_interface() {
   # Generate key pair only if we don't already have one (e.g. when overwriting managed, keep existing keys)
   if [[ ! -f "${WG_DIR}/${iface_name}-privatekey" ]]; then
     wg genkey | tee "${WG_DIR}/${iface_name}-privatekey" | wg pubkey > "${WG_DIR}/${iface_name}-publickey"
-    chmod 600 "${WG_DIR}/${iface_name}-privatekey"
+    chmod 600 "${WG_DIR}/${iface_name}-privatekey" "${WG_DIR}/${iface_name}-publickey"
+    # Set SELinux context (script-created files can get unconfined_u; force system_u:object_r:etc_t:s0)
+    chcon system_u:object_r:etc_t:s0 "${WG_DIR}/${iface_name}-privatekey" "${WG_DIR}/${iface_name}-publickey" 2>/dev/null || true
   fi
 
   privatekey=$(cat "${WG_DIR}/${iface_name}-privatekey")
