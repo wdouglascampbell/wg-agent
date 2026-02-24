@@ -107,6 +107,8 @@ mkdir -p "$CONFIG_DIR"
 chmod 755 "$CONFIG_DIR"
 chown root:root "$CONFIG_DIR"
 
+clear
+
 declare -a INTERFACE_NAMES
 PORT=""
 ALLOWED_CLIENT_IPS=""
@@ -128,6 +130,53 @@ if [[ -f "$ENV_FILE" ]]; then
       done
     fi
   done < "$ENV_FILE"
+
+  # Offer to update ALLOWED_CLIENT_IPS when we have an existing list
+  if [[ -n "$ALLOWED_CLIENT_IPS" ]]; then
+    echo ""
+    echo "Current ALLOWED_CLIENT_IPS: $ALLOWED_CLIENT_IPS"
+    echo "  (1) Keep as-is"
+    echo "  (2) Add one IP to the list"
+    echo "  (3) Replace with new list (full edit)"
+    read -r -p "Choice [1]: " aip_choice
+    aip_choice="${aip_choice:-1}"
+    case "$aip_choice" in
+      2)
+        read -r -p "IP to add (IPv4 or IPv6): " new_ip
+        new_ip=$(echo "$new_ip" | xargs)
+        if [[ -n "$new_ip" ]] && is_valid_ip "$new_ip"; then
+          ALLOWED_CLIENT_IPS=$(echo "$ALLOWED_CLIENT_IPS" | tr ',' ' ' | xargs)
+          ALLOWED_CLIENT_IPS=$(echo "$ALLOWED_CLIENT_IPS $new_ip" | xargs | tr ' ' ',')
+        else
+          [[ -n "$new_ip" ]] && echo "Invalid IP; keeping existing list." >&2
+        fi
+        ;;
+      3)
+        echo "Enter new comma- or space-separated list (replaces current)."
+        while true; do
+          read -r -p "Allowed client IPs: " input_ips
+          ALLOWED_CLIENT_IPS=$(echo "$input_ips" | tr ',' ' ' | xargs)
+          if [[ -z "$ALLOWED_CLIENT_IPS" ]]; then
+            echo "At least one allowed client IP is required." >&2
+            continue
+          fi
+          bad=""
+          for ip in $ALLOWED_CLIENT_IPS; do
+            if ! is_valid_ip "$ip"; then
+              bad="$bad $ip"
+            fi
+          done
+          if [[ -n "$bad" ]]; then
+            echo "Invalid IP address(es):$bad (use valid IPv4 or IPv6)." >&2
+            continue
+          fi
+          break
+        done
+        ALLOWED_CLIENT_IPS=$(echo "$ALLOWED_CLIENT_IPS" | tr ' ' ',')
+        ;;
+      *) ;; # 1 or default: keep as-is
+    esac
+  fi
 fi
 
 # -----------------------------
