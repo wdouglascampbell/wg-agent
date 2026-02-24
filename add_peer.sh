@@ -18,7 +18,7 @@ declare -a INTERFACES
 if [[ -f "$ENV_FILE" ]]; then
   while IFS= read -r line; do
     line="${line%%#*}"
-    line="${line#"${line%%[![:space:]]*}}"
+    line="${line#"${line%%[![:space:]]*}"}"
     [[ -z "$line" ]] && continue
     if [[ "$line" =~ ^INTERFACES=(.*)$ ]]; then
       for name in ${BASH_REMATCH[1]//,/ }; do
