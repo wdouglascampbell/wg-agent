@@ -268,13 +268,13 @@ create_or_overwrite_wg_interface() {
 
   privatekey=$(cat "${WG_DIR}/${iface_name}-privatekey")
 
-  # Write WireGuard config (wg-quick sets WG_IF to the interface name)
+  # Write WireGuard config
   cat > "$wg_conf" << EOF
 [Interface]
 Address = ${iface_addr}/32
 PrivateKey = ${privatekey}
-PostUp = iptables -A FORWARD -i \$WG_IF -o ${ext_if} -j ACCEPT; iptables -t nat -A POSTROUTING -o ${ext_if} -j MASQUERADE
-PostDown = iptables -D FORWARD -i \$WG_IF -o ${ext_if} -j ACCEPT; iptables -t nat -D POSTROUTING -o ${ext_if} -j MASQUERADE
+PostUp = iptables -A FORWARD -i ${iface_name} -o ${ext_if} -j ACCEPT; iptables -t nat -A POSTROUTING -o ${ext_if} -j MASQUERADE
+PostDown = iptables -D FORWARD -i ${iface_name} -o ${ext_if} -j ACCEPT; iptables -t nat -D POSTROUTING -o ${ext_if} -j MASQUERADE
 
 # BEGIN MANAGED PEERS
 # END MANAGED PEERS
