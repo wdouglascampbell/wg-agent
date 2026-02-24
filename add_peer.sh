@@ -118,5 +118,5 @@ fi
 
 cp "$tmp" "$CONFIG_PATH"
 echo "Peer added to $CONFIG_PATH. Applying with wg syncconf..."
-wg-quick strip "$CONFIG_PATH" | wg syncconf "$iface" -
+wg syncconf "$iface" <(wg-quick strip "$CONFIG_PATH")
 echo "Done."
