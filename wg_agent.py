@@ -259,17 +259,21 @@ def rewrite_managed_block(interface_name: str, peers: List[dict]) -> None:
         raise RuntimeError("Managed peers markers not found in config")
 
     static_part = content[:start_idx]
-    footer = content[end_idx:]
+    footer_raw = content[end_idx:]
+    footer_stripped = footer_raw.lstrip("\n")
 
     managed_section = MANAGED_START + "\n"
-    for p in peers:
+    for i, p in enumerate(peers):
+        if i > 0:
+            managed_section += "\n"
         managed_section += f"[Peer]\nPublicKey = {p['public_key']}\n"
         managed_section += f"Endpoint = {p.get('endpoint', '')}\n"
         managed_section += f"AllowedIPs = {','.join(p['allowed_ips'])}\n"
         managed_section += f"PersistentKeepalive = 25\n"
-    managed_section += MANAGED_END + "\n"
+    managed_section += MANAGED_END
 
-    new_config = static_part + managed_section + footer
+    # Single newline after managed section (avoid accumulating blank lines)
+    new_config = static_part + managed_section + "\n" + (footer_stripped + "\n" if footer_stripped else "\n")
 
     # wg-quick strip requires the file to be named INTERFACE.conf
     tmpdir = tempfile.mkdtemp()
