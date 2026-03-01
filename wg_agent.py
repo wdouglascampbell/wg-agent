@@ -272,8 +272,8 @@ def rewrite_managed_block(interface_name: str, peers: List[dict]) -> None:
         managed_section += f"PersistentKeepalive = 25\n"
     managed_section += MANAGED_END
 
-    # Single newline after managed section (avoid accumulating blank lines)
-    new_config = static_part + managed_section + "\n" + (footer_stripped + "\n" if footer_stripped else "\n")
+    # Single newline after managed section (no blank line when footer is empty)
+    new_config = static_part + managed_section + "\n" + (footer_stripped + "\n" if footer_stripped else "")
 
     # wg-quick strip requires the file to be named INTERFACE.conf
     tmpdir = tempfile.mkdtemp()
